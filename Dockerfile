@@ -4,6 +4,7 @@ FROM ros:foxy
 RUN apt-get update && apt-get install -y \
     ros-foxy-rqt \
     python3-pip \
+    python3-pykdl \
  && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install git+https://github.com/UCL/scikit-surgerycalibration
