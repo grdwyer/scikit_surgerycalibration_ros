@@ -9,8 +9,8 @@ RUN apt-get update && apt-get install -y \
 
 RUN pip3 install git+https://github.com/UCL/scikit-surgerycalibration
 
-RUN mkdir -p /dev_ws/src/scikit-surgerycalibration
-COPY . /dev_ws/src/scikit-surgerycalibration-ros/
+RUN mkdir -p /dev_ws/src/
+COPY . /dev_ws/src/scikit_surgerycalibration_ros/
 
 # Build the workspace so you're ready to go
 WORKDIR /dev_ws
