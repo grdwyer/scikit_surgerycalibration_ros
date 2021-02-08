@@ -6,7 +6,7 @@ import tf2_ros
 from std_srvs.srv import Trigger
 import numpy as np
 from sksurgerycalibration.algorithms.pivot import pivot_calibration
-from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import TransformStamped, Transform
 
 
 def frame_to_matrix(frame):
@@ -33,13 +33,35 @@ def frame_to_matrix(frame):
 def trans_msg_to_frame(msg):
     """
     :param msg: transform msg to convert
-    :type msg:  TransformStamped
+    :type msg:  Transform
     :return:
     """
-    rot = PyKDL.Rotation.Quaternion(msg.transform.rotation.x, msg.transform.rotation.y, msg.transform.rotation.z,
-                                    msg.transform.rotation.w)
-    pos = PyKDL.Vector(msg.transform.translation.x, msg.transform.translation.y, msg.transform.translation.z)
+    rot = PyKDL.Rotation.Quaternion(msg.rotation.x, msg.rotation.y, msg.rotation.z,
+                                    msg.rotation.w)
+    pos = PyKDL.Vector(msg.translation.x, msg.translation.y, msg.translation.z)
     return PyKDL.Frame(rot, pos)
+
+
+def frame_to_trans_msg(frame):
+    """
+    :param frame: Transform to convert
+    :type frame: PyKDL.Frame
+    :return: transform message
+    :rtype: Transform
+    """
+    msg = Transform()
+    vec = frame.p
+    quat = frame.M.GetQuaternion()
+
+    msg.translation.x = vec.x()
+    msg.translation.y = vec.y()
+    msg.translation.z = vec.z()
+
+    msg.rotation.x = quat[0]
+    msg.rotation.y = quat[1]
+    msg.rotation.z = quat[2]
+    msg.rotation.w = quat[3]
+    return msg
 
 
 class PivotCalibrationNode(Node):
@@ -71,7 +93,8 @@ class PivotCalibrationNode(Node):
         self.tf_parent_name = self.get_parameter("tf_parent_frame_name")
         self.tf_calibration_name = self.get_parameter("tf_calibration_frame_name")
 
-        self.srv_tf_tracking = self.create_service(Trigger, "{}/tf_tracking", self.callback_tf_tracking)
+        self.srv_tf_tracking = self.create_service(Trigger, "{}/tf_tracking".format(self.get_name()),
+                                                   self.callback_tf_tracking)
         self.state_tf_tracking = False
         self.timer_tf_lookup = self.create_timer(0.1, self.callback_tf_lookup)  # don't start the timer on startup
         self.timer_tf_lookup.cancel()
@@ -129,7 +152,7 @@ class PivotCalibrationNode(Node):
         #  Convert to matrices
         matrices = np.zeros((len(self.tf_frames), 4, 4))
         for i in range(len(self.tf_frames)):
-            frame = trans_msg_to_frame(self.tf_frames[i])
+            frame = trans_msg_to_frame(self.tf_frames[i].transform)
             matrix = frame_to_matrix(frame)
             matrices[i, 0:4, 0:4] = matrix
 
@@ -143,10 +166,10 @@ class PivotCalibrationNode(Node):
         tool_calibration = TransformStamped()
         tool_calibration.child_frame_id = self.tf_calibration_name.get_parameter_value().string_value
         tool_calibration.header.frame_id = self.tf_ee_name.get_parameter_value().string_value
-        tool_calibration.transform.translation.x = pointer_offset[0]
-        tool_calibration.transform.translation.y = pointer_offset[1]
-        tool_calibration.transform.translation.z = pointer_offset[2]
-        tool_calibration.transform.rotation.z = 1.0
+        tool_calibration.transform.translation.x = float(pointer_offset[0])
+        tool_calibration.transform.translation.y = float(pointer_offset[1])
+        tool_calibration.transform.translation.z = float(pointer_offset[2])
+        tool_calibration.transform.rotation.w = 1.0
         self.static_transform_publisher.sendTransform(tool_calibration)
 
         # publish pivot transform
@@ -154,11 +177,12 @@ class PivotCalibrationNode(Node):
         pivot_transform.child_frame_id = self.tf_calibration_name.get_parameter_value().string_value + \
                                          "_measured_pivot_point"
         pivot_transform.header.frame_id = self.tf_parent_name.get_parameter_value().string_value
-        pivot_transform.transform.translation.x = pivot_point[0]
-        pivot_transform.transform.translation.y = pivot_point[1]
-        pivot_transform.transform.translation.z = pivot_point[2]
-        pivot_transform.transform.rotation.z = 1.0
+        pivot_transform.transform.translation.x = float(pivot_point[0])
+        pivot_transform.transform.translation.y = float(pivot_point[1])
+        pivot_transform.transform.translation.z = float(pivot_point[2])
+        pivot_transform.transform.rotation.w = 1.0
         self.static_transform_publisher.sendTransform(pivot_transform)
+        return pointer_offset, pivot_point, residual_error
 
 
 def main():

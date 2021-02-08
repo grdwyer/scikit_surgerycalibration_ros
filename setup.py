@@ -1,6 +1,6 @@
 from setuptools import setup
 
-package_name = 'scikit-surgerycalibration-ros'
+package_name = 'scikit_surgerycalibration_ros'
 
 setup(
     name=package_name,
@@ -19,7 +19,8 @@ setup(
     license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={
-        'console_scripts': ['scikit-surgerycalibration-ros.pivot_calibration:main'
+        'console_scripts': [
+            'pivot_calibration=scikit_surgerycalibration_ros.pivot_calibration:main'
         ],
     },
 )
